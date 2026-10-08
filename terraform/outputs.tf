@@ -12,3 +12,8 @@ output "weather_url" {
   description = "URL of the Weather Dashboard"
   value       = "http://${aws_instance.weather_server.public_ip}"
 }
+
+output "ec2_instance_id" {
+  description = "EC2 instance ID"
+  value       = aws_instance.weather_server.id
+}
