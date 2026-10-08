@@ -14,10 +14,14 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+
+# --------------------------------------------------
+# Security Group
+# --------------------------------------------------
+
 resource "aws_security_group" "weather_sg" {
   name        = "${var.project_name}-sg"
   description = "Security group for Weather Dashboard"
-
 
   ingress {
     description = "Weather Dashboard"
@@ -35,30 +39,84 @@ resource "aws_security_group" "weather_sg" {
   }
 }
 
-resource "aws_instance" "weather_server" {
-  ami            = data.aws_ami.ubuntu.id
-  instance_type  = var.instance_type
 
-  vpc_security_group_ids = [aws_security_group.weather_sg.id]
+# --------------------------------------------------
+# IAM Role for AWS Systems Manager
+# --------------------------------------------------
+
+resource "aws_iam_role" "ssm_role" {
+  name = "${var.project_name}-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+
+# --------------------------------------------------
+# Attach SSM Policy to IAM Role
+# --------------------------------------------------
+
+resource "aws_iam_role_policy_attachment" "ssm_policy" {
+  role       = aws_iam_role.ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+
+# --------------------------------------------------
+# IAM Instance Profile
+# --------------------------------------------------
+
+resource "aws_iam_instance_profile" "ssm_profile" {
+  name = "${var.project_name}-ssm-profile"
+  role = aws_iam_role.ssm_role.name
+}
+
+
+# --------------------------------------------------
+# EC2 Instance
+# --------------------------------------------------
+
+resource "aws_instance" "weather_server" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+
+  iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
+
+  vpc_security_group_ids = [
+    aws_security_group.weather_sg.id
+  ]
 
   user_data = <<-EOF
-            #!/bin/bash
+              #!/bin/bash
 
-            apt-get update -y
-            apt-get install -y docker.io
+              apt-get update -y
+              apt-get install -y docker.io
 
-            systemctl enable docker
-            systemctl start docker
+              systemctl enable docker
+              systemctl start docker
 
-            docker pull ghcr.io/sasi-76/docker-weather:latest
+              docker pull ghcr.io/sasi-76/docker-weather:latest
 
-            docker run -d \
-              --name pro-weather \
-              --restart unless-stopped \
-              -p 80:5000 \
-              -e OPENWEATHER_API_KEY="${var.openweather_api_key}" \
-              ghcr.io/sasi-76/docker-weather:latest
-            EOF
+              docker run -d \
+                --name pro-weather \
+                --restart unless-stopped \
+                -p 80:5000 \
+                -e OPENWEATHER_API_KEY="${var.openweather_api_key}" \
+                ghcr.io/sasi-76/docker-weather:latest
+              EOF
 
   tags = {
     Name = var.project_name
