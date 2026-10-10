@@ -15,10 +15,6 @@ data "aws_ami" "ubuntu" {
 }
 
 
-# --------------------------------------------------
-# Security Group
-# --------------------------------------------------
-
 resource "aws_security_group" "weather_sg" {
   name        = "${var.project_name}-sg"
   description = "Security group for Weather Dashboard"
@@ -38,11 +34,6 @@ resource "aws_security_group" "weather_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-
-# --------------------------------------------------
-# IAM Role for AWS Systems Manager
-# --------------------------------------------------
 
 resource "aws_iam_role" "ssm_role" {
   name = "${var.project_name}-ssm-role"
@@ -64,30 +55,15 @@ resource "aws_iam_role" "ssm_role" {
   })
 }
 
-
-# --------------------------------------------------
-# Attach SSM Policy to IAM Role
-# --------------------------------------------------
-
 resource "aws_iam_role_policy_attachment" "ssm_policy" {
   role       = aws_iam_role.ssm_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-
-# --------------------------------------------------
-# IAM Instance Profile
-# --------------------------------------------------
-
 resource "aws_iam_instance_profile" "ssm_profile" {
   name = "${var.project_name}-ssm-profile"
   role = aws_iam_role.ssm_role.name
 }
-
-
-# --------------------------------------------------
-# EC2 Instance
-# --------------------------------------------------
 
 resource "aws_instance" "weather_server" {
   ami           = data.aws_ami.ubuntu.id
