@@ -3,12 +3,12 @@
 __pycache__/
 *.pyc
 
-# Terraform
+
 .terraform/
 *.tfstate
 *.tfstate.*
 tfplan
 
-# Terraform variables
+
 *.tfvars
 *.tfvars.json
